@@ -1,0 +1,4 @@
+.build/
+dist/
+SASPlanet.app/
+.DS_Store
