@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SASPlanetMac}",
+            "name": "Debug SASPlanet",
+            "target": "SASPlanet",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug SASPlanet"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SASPlanetMac}",
+            "name": "Release SASPlanet",
+            "target": "SASPlanet",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release SASPlanet"
+        }
+    ]
+}

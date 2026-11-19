@@ -286,7 +286,7 @@ final class StitchTask {
             throw NSError(domain: "SAS", code: 3, userInfo: [NSLocalizedDescriptionKey: "Cannot write \(url.path)"])
         }
         var props: [CFString: Any] = [:]
-        if opts.format == .jpeg { props[kCGImageDestinationLossyCompressionQuality] = Double(opts.jpegQuality) / 100 }
+        if opts.format == .jpeg { props[kCGImageDestinationLossyCompressionQuality] = JPEGQuality.factor(opts.jpegQuality) }
         CGImageDestinationAddImage(dest, img, props as CFDictionary)
         if !CGImageDestinationFinalize(dest) && !cancelled {
             throw NSError(domain: "SAS", code: 4, userInfo: [NSLocalizedDescriptionKey: "Writing the image failed (\(r.width)×\(r.height) px). Try Split image or GeoTIFF."])

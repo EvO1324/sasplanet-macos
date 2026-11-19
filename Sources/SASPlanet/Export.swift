@@ -22,11 +22,35 @@ extension StitchTask: LongTask {
 
 // MARK: - Image encoding helpers
 
+/// SAS.Planet's JPEG quality (libjpeg 1–100) converted to Apple ImageIO's compression factor.
+/// ImageIO's scale is much gentler: 0.60 there equals roughly libjpeg quality 87. Matching on the
+/// first luminance quantization value (measured from ImageIO) keeps "60%" meaning the same as on Windows.
+enum JPEGQuality {
+    // (libjpeg luminance Q[0] value, ImageIO factor that produces it)
+    private static let points: [(Double, Double)] = [
+        (1, 0.90), (2, 0.775), (3, 0.675), (4, 0.575), (6, 0.50), (7, 0.45), (9, 0.40),
+        (12, 0.35), (15, 0.30), (19, 0.25), (23, 0.20), (26, 0.15), (28, 0.10),
+    ]
+
+    static func factor(_ quality: Int) -> Double {
+        let q = Double(max(1, min(100, quality)))
+        if q >= 100 { return 1.0 }
+        let scale = q < 50 ? 5000 / q : 200 - 2 * q
+        let q0 = max(1, (16 * scale + 50) / 100)
+        if q0 <= points[0].0 { return points[0].1 }
+        for i in 1..<points.count where q0 <= points[i].0 {
+            let (a, fa) = points[i - 1], (b, fb) = points[i]
+            return fa + (fb - fa) * (q0 - a) / (b - a)
+        }
+        return 0.05
+    }
+}
+
 enum ImageEnc {
     static func encode(_ img: CGImage, jpeg: Bool, quality: Int = 85) -> Data? {
         let d = NSMutableData()
         guard let dest = CGImageDestinationCreateWithData(d, (jpeg ? UTType.jpeg : UTType.png).identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(dest, img, jpeg ? [kCGImageDestinationLossyCompressionQuality: Double(quality) / 100] as CFDictionary : nil)
+        CGImageDestinationAddImage(dest, img, jpeg ? [kCGImageDestinationLossyCompressionQuality: JPEGQuality.factor(quality)] as CFDictionary : nil)
         return CGImageDestinationFinalize(dest) ? d as Data : nil
     }
 
