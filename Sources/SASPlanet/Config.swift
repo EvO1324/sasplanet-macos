@@ -14,7 +14,10 @@ enum DownloadMode: Int {
 /// Application settings, persisted in UserDefaults (SAS.Planet keeps these in SASPlanet.ini).
 final class Config {
     static let shared = Config()
-    private let d = UserDefaults.standard
+    /// Test copies (SAS_DEBUG=1) keep separate settings so they never disturb a running copy.
+    static let defaults: UserDefaults = ProcessInfo.processInfo.environment["SAS_DEBUG"] == "1"
+        ? (UserDefaults(suiteName: "org.sasgis.sasplanet.macos.debug") ?? .standard) : .standard
+    private let d = Config.defaults
 
     private init() {
         d.register(defaults: [

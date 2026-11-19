@@ -123,11 +123,25 @@ final class TileProvider {
         return CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
     }
 
-    func image(_ k: TileKey) -> CGImage? { mem.object(forKey: k.nsKey)?.image }
+    /// Tiles currently on screen, held strongly so memory pressure can't make them flicker.
+    private var pinned: [TileKey: CGImage] = [:]
+
+    func image(_ k: TileKey) -> CGImage? {
+        if let p = pinned[k] { return p }
+        guard let img = mem.object(forKey: k.nsKey)?.image else { return nil }
+        if isWanted(k) { pinned[k] = img }
+        return img
+    }
+
+    private func isWanted(_ k: TileKey) -> Bool { wanted.values.contains { $0.contains(k) } }
 
     func setWanted(_ s: Set<TileKey>, client: String) {
         wanted[client] = s
         let all = allWanted()
+        // keep only on-screen tiles pinned (plus parents used as stand-ins stay in the NSCache)
+        if pinned.count > all.count + 64 || pinned.keys.contains(where: { !all.contains($0) }) {
+            pinned = pinned.filter { all.contains($0.key) }
+        }
         pending.removeAll { k in
             if all.contains(k) { return false }
             inflight.remove(k)
@@ -137,15 +151,20 @@ final class TileProvider {
 
     private func allWanted() -> Set<TileKey> { wanted.values.reduce(into: Set<TileKey>()) { $0.formUnion($1) } }
 
+    /// Test hook: what macOS does under memory pressure (drops the NSCache, not the pinned tiles).
+    func simulateMemoryPressure() { mem.removeAllObjects(); scheduleUpdate() }
+
     /// Forget everything (cache folder or folder names changed).
     func reset() {
         mem.removeAllObjects()
+        pinned.removeAll()
         negative.removeAll()
         scheduleUpdate()
     }
 
     /// A tile changed on disk (downloaded or deleted elsewhere).
     func invalidate(_ k: TileKey) {
+        pinned.removeValue(forKey: k)
         if Config.shared.fillZoom >= 0 { FillMapLayer.shared.invalidateSoon() }
         mem.removeObject(forKey: k.nsKey)
         negative.removeValue(forKey: k)
@@ -154,6 +173,7 @@ final class TileProvider {
 
     func store(_ img: CGImage, _ k: TileKey) {
         mem.setObject(ImageBox(img), forKey: k.nsKey, cost: img.width * img.height * 4)
+        if isWanted(k) { pinned[k] = img }
         scheduleUpdate()
     }
 
@@ -169,6 +189,7 @@ final class TileProvider {
         io.addOperation { [weak self] in
             var img: CGImage?
             var needNet = false
+            var isTNE = false
             if mode == .internet {
                 needNet = true
             } else {
@@ -178,6 +199,7 @@ final class TileProvider {
                     if img == nil { needNet = mode != .cache }
                 case .tne:
                     needNet = false
+                    isTNE = true
                 case .none:
                     needNet = mode != .cache
                 }
@@ -192,7 +214,7 @@ final class TileProvider {
                     self.pump()
                 } else {
                     self.inflight.remove(k)
-                    self.negative[k] = Date().addingTimeInterval(3600)
+                    self.negative[k] = Date().addingTimeInterval(isTNE ? 3600 : 120)
                 }
             }
         }
@@ -205,7 +227,7 @@ final class TileProvider {
             running += 1
             TileFetcher.shared.fetch(m, x: k.x, y: k.y, z: k.z) { [weak self] result in
                 var img: CGImage?
-                var retryAfter: TimeInterval = 30
+                var retryAfter: TimeInterval = 10
                 switch result {
                 case .tile(let data, let ext):
                     TileStorage.shared.write(data, ext: ext, m, k.x, k.y, k.z)
@@ -220,7 +242,13 @@ final class TileProvider {
                     guard let self = self else { return }
                     self.running -= 1
                     self.inflight.remove(k)
-                    if let img = img { self.store(img, k) } else { self.negative[k] = Date().addingTimeInterval(retryAfter) }
+                    if let img = img { self.store(img, k) } else {
+                        self.negative[k] = Date().addingTimeInterval(retryAfter)
+                        if retryAfter < 3600 {
+                            // redraw after the back-off so the tile is requested again without needing to move the map
+                            DispatchQueue.main.asyncAfter(deadline: .now() + retryAfter + 0.5) { [weak self] in self?.scheduleUpdate() }
+                        }
+                    }
                     if Config.shared.fillZoom >= 0 { FillMapLayer.shared.invalidateSoon() }
                     self.scheduleUpdate()
                     self.pump()

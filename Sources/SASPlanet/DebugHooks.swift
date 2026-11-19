@@ -71,6 +71,7 @@ enum DebugHooks {
             let c = Config.shared
             try? "map=\(c.mainMapId) night=\(c.nightMode) status=\(c.statusBarVisible) mini=\(c.miniMapVisible) grid=\(c.lonLatGrid) src=\(c.downloadMode.rawValue) tool=\(map.tool) zoom=\(map.zoom + 1) center=\(map.centerLonLat) sheet=\(mw.window?.attachedSheet != nil) titled=\(mw.window?.styleMask.contains(.titled) ?? false) windows=\(NSApp.windows.map { "\($0.title)|vis=\($0.isVisible)|\(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))x\(Int($0.frame.height))|lvl=\($0.level.rawValue)" })"
                 .write(toFile: arg, atomically: true, encoding: .utf8)
+        case "purge": TileProvider.shared.simulateMemoryPressure()
         case "map": Config.shared.mainMapId = arg
         case "layers": Config.shared.layerIds = arg.isEmpty ? [] : arg.split(separator: ",").map(String.init)
         case "tool":

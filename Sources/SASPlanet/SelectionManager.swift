@@ -341,7 +341,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
     }
 
     private func buildDownload() -> NSView {
-        let d = UserDefaults.standard
+        let d = Config.defaults
         let v = FlippedView(frame: NSRect(x: 0, y: 0, width: tabW, height: 390))
         v.addSubview(UI.header("Download Tiles", width: tabW))
         let colW = tabW - 120
@@ -396,7 +396,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
     private var stZoomTouched = false
 
     private func buildStitch() -> NSView {
-        let d = UserDefaults.standard
+        let d = Config.defaults
         let v = FlippedView(frame: NSRect(x: 0, y: 0, width: tabW, height: 390))
         v.addSubview(UI.header("Stitch Selection", width: tabW))
         v.addSubview(UI.label("Output format:", NSRect(x: 4, y: 33, width: 100, height: 17)))
@@ -532,7 +532,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
             stPath.stringValue = u.deletingPathExtension().appendingPathExtension(ext).path
             return
         }
-        let dir = UserDefaults.standard.string(forKey: "st.dir")
+        let dir = Config.defaults.string(forKey: "st.dir")
             ?? Config.shared.cacheURL.deletingLastPathComponent().appendingPathComponent("stitched").path
         let m = selectedMap(stMap)?.folder ?? "map"
         stPath.stringValue = (dir as NSString).appendingPathComponent("\(m)_z\(stZoom.indexOfSelectedItem + 1).\(ext)")
@@ -599,7 +599,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
         o.jpegQuality = max(1, min(100, stQuality.integerValue))
         o.pngAlpha = stAlpha.state == .on
         o.kmzPiece = Int(stKmzSize.titleOfSelectedItem?.split(separator: "x").first ?? "1024") ?? 1024
-        let d = UserDefaults.standard
+        let d = Config.defaults
         d.set(o.format.rawValue, forKey: "st.format")
         d.set(Array(o.georef), forKey: "st.georef")
         d.set(o.preciseCrop, forKey: "st.precise")
@@ -730,7 +730,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
 
     private func updateExportPath() {
         guard exPath != nil, !exPathEdited || exPath.stringValue.isEmpty else { return }
-        let dir = UserDefaults.standard.string(forKey: "ex.dir")
+        let dir = Config.defaults.string(forKey: "ex.dir")
             ?? Config.shared.cacheURL.deletingLastPathComponent().appendingPathComponent("export").path
         let m = selectedMap(exMap)?.folder ?? "map"
         let ext = exportExt
@@ -763,7 +763,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
         o.name = exName.stringValue
         o.description = exDesc.stringValue
         o.attribution = exAttr.stringValue
-        UserDefaults.standard.set(o.output.deletingLastPathComponent().path, forKey: "ex.dir")
+        Config.defaults.set(o.output.deletingLastPathComponent().path, forKey: "ex.dir")
         if exportExt == "mbtiles" {
             StitchProgressController.open(task: MBTilesExportTask(opts: o, region: region), main: main)
             return true
@@ -841,7 +841,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
         v.addSubview(UI.label("Save to:", NSRect(x: 4, y: 33, width: 60, height: 17)))
         cpPath = NSTextField(frame: NSRect(x: 62, y: 30, width: colW - 108, height: 22))
         cpPath.font = .systemFont(ofSize: 12)
-        cpPath.stringValue = UserDefaults.standard.string(forKey: "cp.dir")
+        cpPath.stringValue = Config.defaults.string(forKey: "cp.dir")
             ?? Config.shared.cacheURL.deletingLastPathComponent().appendingPathComponent("copy").path
         v.addSubview(cpPath)
         let browse = NSButton(title: "...", target: self, action: #selector(chooseCopyFolder(_:)))
@@ -914,7 +914,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
             let a = NSAlert(); a.messageText = "Pick at least one map and one zoom to copy."; a.runModal(); return false
         }
         let root = URL(fileURLWithPath: (cpPath.stringValue as NSString).expandingTildeInPath, isDirectory: true)
-        UserDefaults.standard.set(root.path, forKey: "cp.dir")
+        Config.defaults.set(root.path, forKey: "cp.dir")
         let fmtTitle = cpFormat.titleOfSelectedItem ?? CacheFormat.sas.rawValue
         let replace = cpReplace.state == .on
         if cpMove.state == .on {
@@ -1033,7 +1033,7 @@ final class SelectionManagerController: NSWindowController, NSWindowDelegate, NS
 
     private func startDownload() {
         guard let m = selectedMap(dlMap), !dlZooms.selected.isEmpty, !region.polygon.isEmpty else { NSSound.beep(); return }
-        let d = UserDefaults.standard
+        let d = Config.defaults
         d.set(dlStartPaused.state == .on, forKey: "dl.startPaused")
         d.set(dlCloseWhenDone.state == .on, forKey: "dl.closeWhenDone")
         d.set(dlTryTNE.state == .on, forKey: "dl.tryTNE")

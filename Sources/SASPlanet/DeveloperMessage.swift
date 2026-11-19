@@ -16,7 +16,7 @@ enum DeveloperMessage {
     private static let shownKey = "developerMessageShownVersion"
 
     static func showIfNeeded(over window: NSWindow?) {
-        if UserDefaults.standard.integer(forKey: shownKey) >= version { return }
+        if Config.defaults.integer(forKey: shownKey) >= version { return }
         show(over: window)
     }
 
@@ -30,7 +30,7 @@ enum DeveloperMessage {
         a.suppressionButton?.title = "Don't show this again"
         a.suppressionButton?.state = .on
         let done: (NSApplication.ModalResponse) -> Void = { _ in
-            if a.suppressionButton?.state == .on { UserDefaults.standard.set(version, forKey: shownKey) }
+            if a.suppressionButton?.state == .on { Config.defaults.set(version, forKey: shownKey) }
         }
         if let w = window { a.beginSheetModal(for: w, completionHandler: done) } else { done(a.runModal()) }
     }
